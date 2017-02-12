@@ -447,6 +447,31 @@ contract('Wings', (accounts) => {
     }).then(done).catch(done)
   })
 
+  it('Should disable forecasting', (done) => {
+    return wings.disableForecast.sendTransaction(projectId, {
+      from: creator
+    }).then((txId) => {
+      assert.notEqual(txId, null)
+    }).then(done).catch(done)
+  })
+
+  it('Shouldn\'t allow to forecast now', (done) => {
+    const user = accounts[2]
+
+    return wings.addForecast.sendTransaction(
+        projectId,
+        0,
+        '0x' + crypto.randomBytes(32),
+      {
+        from: user
+      }
+      ).then(() => {
+        asset.equal(1, 0)
+      }).catch((err) => {
+        done()
+      })
+  })
+
   it('Should allow to start crowdsale', (done) => {
     const user = accounts[1]
     return wings.startCrowdsale.sendTransaction(
