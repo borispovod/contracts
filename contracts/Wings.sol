@@ -74,6 +74,15 @@ contract Wings {
   }
 
   /*
+    Crowdsales
+  */
+  struct Crowdsale {
+    address creator;
+    bytes32 projectId;
+    address crowdsaleContract;
+  }
+
+  /*
     Wings Project Structure
   */
   struct Project {
@@ -113,20 +122,19 @@ contract Wings {
 
   mapping(address => mapping(bytes32 => Forecast)) myForecasts; // my forecast to the project
 
-  /*
-    Crowdsales
-  */
-  struct Crowdsale {
-    address creator;
-    bytes32 projectId;
-    address crowdsaleContract;
-  }
+  mapping(bytes32 => bool) forecastsPeriod; // active forecasts
 
   mapping(bytes32 => Crowdsale) crowdsales;
 
   uint count; // amount of projects
   address creator; // creator of the contract
   address admin; // admin of contract, only temporaly, removed in prod
+
+  modifier activeForecast(bytes32 _projectId) {
+    if (forecastsPeriod[_projectId] == true) {
+      _;
+    }
+  }
 
   modifier onlyCreator() {
     if (creator == msg.sender) {
@@ -242,6 +250,9 @@ contract Wings {
       projects[_projectId] = project;
       projectsIds[count++] = _projectId;
       myProjectsIds[msg.sender][myProjectsCount[msg.sender]++] = _projectId;
+
+      // enable forecast from start
+      forecastsPeriod[_projectId] = true;
 
       ProjectCreation(msg.sender, _projectId, project.name);
       return true;
@@ -427,7 +438,7 @@ contract Wings {
   /*
     Forecasting
   */
-  function addForecast(bytes32 projectId, uint sum, bytes32 message) {
+  function addForecast(bytes32 projectId, uint sum, bytes32 message) activeForecast(projectId) {
     var project = projects[projectId];
 
     if (project.creator == address(0)) {
@@ -461,6 +472,11 @@ contract Wings {
 
     project.forecasts[project.forecastsCount++] = forecast;
     myForecasts[msg.sender][projectId] = forecast;
+  }
+
+  // disable forecast
+  function disableForecast(bytes32 projectId) projectOwner(projectId) {
+    forecastsPeriod[projectId] = false;
   }
 
   /*
