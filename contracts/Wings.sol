@@ -73,7 +73,6 @@ contract Wings {
     uint sum; // sum that going to collect
   }
 
-
   /*
     Wings Project Structure
   */
@@ -184,6 +183,10 @@ contract Wings {
       bytes32 _story,
       bool cap
     ) returns (bool) {
+      if (msg.sender != creator) {
+        throw;
+      }
+
       bytes32 _projectId = sha256(_name);
 
       if (projects[_projectId].creator != address(0)) {
