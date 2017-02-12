@@ -73,7 +73,6 @@ contract Wings {
     uint sum; // sum that going to collect
   }
 
-
   /*
     Wings Project Structure
   */
@@ -127,6 +126,19 @@ contract Wings {
 
   uint count; // amount of projects
   address creator; // creator of the contract
+  address admin; // admin of contract, only temporaly, removed in prod
+
+  modifier onlyCreator() {
+    if (creator == msg.sender) {
+      _;
+    }
+  }
+
+  modifier onlyAdmin() {
+    if (admin == msg.sender) {
+      _;
+    }
+  }
 
   modifier projectOwner(bytes32 projectId) {
     var project = projects[projectId];
@@ -156,6 +168,14 @@ contract Wings {
     creator = msg.sender;
   }
 
+  function setAdmin(address _admin) onlyCreator() {
+    if (msg.sender != creator) {
+      throw;
+    }
+
+    admin = _admin;
+  }
+
   function getProjectId(uint n) constant returns (bytes32) {
     return projectsIds[n];
   }
@@ -183,7 +203,7 @@ contract Wings {
       string _videolink,
       bytes32 _story,
       bool cap
-    ) returns (bool) {
+    ) onlyAdmin() returns (bool) {
       bytes32 _projectId = sha256(_name);
 
       if (projects[_projectId].creator != address(0)) {

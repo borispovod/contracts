@@ -29,6 +29,10 @@ contract('Wings', (accounts) => {
     }).then((_wings) => {
       wings = _wings
     }).then(() => {
+      return wings.setAdmin.sendTransaction(creator, {
+        from: creator
+      })
+    }).then(() => {
       project = {
         name: uuid.v4(), // chance.word(),
         shortBlurb: '0x' + crypto.randomBytes(32).toString('hex'),
@@ -71,6 +75,47 @@ contract('Wings', (accounts) => {
         assert.equal(bcProject.duration.toString(), project.duration.toString())
       })
     }).then(done).catch(done)
+  })
+
+  it('Shouldnt allot to create project from new user', (done) => {
+    const user = accounts[1]
+
+    const newProject = {
+      name: uuid.v4(), // chance.word(),
+      shortBlurb: '0x' + crypto.randomBytes(32).toString('hex'),
+      logoHash: '0x' + crypto.randomBytes(32).toString('hex'),
+      category: chance.integer({min: 0, max: 2}),
+      rewardType: chance.integer({min: 0, max: 2}),
+      percent: chance.integer({min: 1, max: 100}),
+      duration: chance.integer({min: 1, max: 180}),
+      goal: web3.toWei(chance.integer({min: 100, max: 1000}), 'ether'),
+      videolink: 'https://www.youtube.com/watch?v=4FeJ0QPZnGc',
+      story: '0x' + crypto.randomBytes(32).toString('hex'),
+      cap: true
+    }
+
+    const newProjectId = '0x' + crypto.createHash('sha256').update(new Buffer(project.name, 'utf8')).digest().toString('hex')
+
+    return wings.addProject.sendTransaction(
+      project.name,
+      project.shortBlurb,
+      project.logoHash,
+      project.category,
+      project.rewardType,
+      project.percent,
+      project.duration,
+      project.goal,
+      project.videolink,
+      project.story,
+      project.cap,
+      {
+        from: creator
+      }
+    ).then(() => {
+      assert.equal(1, 0)
+    }).catch((err) => {
+      done()
+    })
   })
 
   it('Should return base project info', (done) => {
