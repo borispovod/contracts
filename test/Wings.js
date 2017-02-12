@@ -486,7 +486,6 @@ contract('Wings', (accounts) => {
 
   it('Should return crowdsale contract', (done) => {
     return wings.getCrowdsale.call(projectId).then((crowdsale) => {
-      console.log(crowdsale[0], crowdsale[1])
       assert.notEqual(crowdsale, null)
     }).then(done).catch(done)
   })
