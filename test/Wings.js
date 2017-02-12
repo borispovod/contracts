@@ -29,6 +29,10 @@ contract('Wings', (accounts) => {
     }).then((_wings) => {
       wings = _wings
     }).then(() => {
+      return wings.setAdmin.sendTransaction(creator, {
+        from: creator
+      })
+    }).then(() => {
       project = {
         name: uuid.v4(), // chance.word(),
         shortBlurb: '0x' + crypto.randomBytes(32).toString('hex'),
