@@ -475,7 +475,7 @@ contract Wings {
   }
 
   // disable forecast
-  function disableForecast(bytes32 projectId) onlyCreator(projectId) {
+  function disableForecast(bytes32 projectId) projectOwner(projectId) {
     forecastsPeriod[projectId] = false;
   }
 
