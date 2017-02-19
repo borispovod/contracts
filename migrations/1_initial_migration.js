@@ -1,3 +1,5 @@
-module.exports = function(deployer) {
-  deployer.deploy(Migrations);
-};
+/* global Migrations */
+
+module.exports = (deployer) => {
+  deployer.deploy(Migrations)
+}

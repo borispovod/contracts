@@ -1,6 +1,11 @@
+/*
+  This is not real contracts, only to enable/disable forecasting
+*/
+
 pragma solidity ^0.4.2;
 
 import './helpers/strings.sol';
+import './WingsCrowdsale.sol';
 
 contract Wings {
   using strings for *;
@@ -15,9 +20,15 @@ contract Wings {
   /*
     Milestone Events
    */
-  event MilestoneUpdated(bytes32 indexed id, uint milestoneId);
   event MilestoneAdded(bytes indexed id);
-  event MilestoneRemoved(bytes32 indexed id, uint milestoneId);
+
+  /*
+    Forecast type
+  */
+  enum ForecastRaiting {
+    Low,
+    Top
+  }
 
   /*
     Project Categories
@@ -58,9 +69,21 @@ contract Wings {
   }
 
   struct Forecast {
+    address creator;  // creator
+    bytes32 project; // project
+    ForecastRaiting raiting; // raiting
+    uint timestamp; // timestamp
+    bytes32 message; // message
+    uint sum; // sum that going to collect
+  }
+
+  /*
+    Crowdsales
+  */
+  struct Crowdsale {
     address creator;
-    uint amount;
-    uint timestamp;
+    bytes32 projectId;
+    address crowdsaleContract;
   }
 
   /*
@@ -68,8 +91,9 @@ contract Wings {
   */
   struct Project {
     bytes32 id; // id of project
-
+    //address crowdsale; // crowdsale contract of project
     string name; // name of project
+
     bytes32 shortBlurb; // hash of shortBlurb
     bytes32 logoHash; // hash of project logotype
 
@@ -80,28 +104,53 @@ contract Wings {
     uint goal; // goal that project expect to collect
 
     string videolink; // link to the video
-    bytes32 story; //hash of project story
+    bytes32 story;
 
     address creator; // creator of the projects
-    bool underReview; // project under review
-    bool underForecast; // project under forecast
 
     uint timestamp; // timestamp when project created
     bool cap; // project cupped under latest milestone
 
     uint milestonesCount; // amount of milestones
-
-    uint hoursToReview; // hours that allow to review
-    uint hoursToForecast; // hourse to allow to forecast
+    uint forecastsCount;  // amount of forecasts
 
     mapping(uint => Milestone) milestones; // Milestones
+    mapping(uint => Forecast) forecasts; // Forecasts
   }
 
   mapping(bytes32 => Project) projects; // project by name hash to project object
   mapping(uint => bytes32) projectsIds; // project ids
 
+  mapping(address => mapping(uint => bytes32)) myProjectsIds; // my projects ids
+  mapping(address => uint) myProjectsCount; // my projects count
+
+  mapping(address => mapping(bytes32 => Forecast)) myForecasts; // my forecast to the project
+
+  mapping(bytes32 => bool) forecastsPeriod; // active forecasts
+
+  mapping(bytes32 => Crowdsale) crowdsales;
+
   uint count; // amount of projects
   address creator; // creator of the contract
+  address admin; // admin of contract, only temporaly, removed in prod
+
+  modifier activeForecast(bytes32 _projectId) {
+    if (forecastsPeriod[_projectId] == true) {
+      _;
+    }
+  }
+
+  modifier onlyCreator() {
+    if (creator == msg.sender) {
+      _;
+    }
+  }
+
+  modifier onlyAdmin() {
+    if (admin == msg.sender) {
+      _;
+    }
+  }
 
   modifier projectOwner(bytes32 projectId) {
     var project = projects[projectId];
@@ -111,21 +160,40 @@ contract Wings {
     }
   }
 
-  modifier allowToChange(bytes32 projectId) {
+  modifier allowToAddMilestone(bytes32 projectId) {
     var project = projects[projectId];
 
-    if (project.underReview) {
+    if (block.timestamp < project.timestamp + 24 hours) {
       _;
     }
   }
 
+  modifier allowToStartCrowdsale(bytes32 projectId) {
+    var crowdsale = crowdsales[projectId];
+
+    if (crowdsale.creator == address(0)) {
+      _;
+    }
+  }
 
   function Wings() {
     creator = msg.sender;
   }
 
-  function getHash(string data) returns (bytes32) {
-    return sha256(data);
+  function setAdmin(address _admin) onlyCreator() {
+    admin = _admin;
+  }
+
+  function getProjectId(uint n) constant returns (bytes32) {
+    return projectsIds[n];
+  }
+
+  function getMyProjectsCount(address owner) constant returns (uint) {
+    return myProjectsCount[owner];
+  }
+
+  function getMyProjectId(address owner, uint id) constant returns (bytes32) {
+    return myProjectsIds[owner][id];
   }
 
   /*
@@ -143,7 +211,7 @@ contract Wings {
       string _videolink,
       bytes32 _story,
       bool cap
-    ) returns (bool) {
+    ) onlyAdmin() returns (bool) {
       bytes32 _projectId = sha256(_name);
 
       if (projects[_projectId].creator != address(0)) {
@@ -154,13 +222,11 @@ contract Wings {
         throw;
       }
 
-      if (_duration > 180 || _duration == 0) {
+      if (_duration > 180 || _duration < 30) {
         throw;
       }
 
-      /*if (hoursToReview < 12 || hoursToReview > 36) {
-        throw;
-      }*/
+      //address _crowdsale = new WingsCrowdsale(_name, _name);
 
       var project = Project(
         _projectId,
@@ -175,17 +241,18 @@ contract Wings {
         _videolink,
         _story,
         msg.sender, // creator
-        true, // under review
-        false, // under forecasting
         block.timestamp, // timestamp
         cap, // cap
-        0, // milestones count
-        0, // hours to review
-        0 // hours to forecast
+        0,
+        0
       );
 
       projects[_projectId] = project;
       projectsIds[count++] = _projectId;
+      myProjectsIds[msg.sender][myProjectsCount[msg.sender]++] = _projectId;
+
+      // enable forecast from start
+      forecastsPeriod[_projectId] = true;
 
       ProjectCreation(msg.sender, _projectId, project.name);
       return true;
@@ -193,16 +260,16 @@ contract Wings {
 
 
   /* Get base project info */
-  function getBaseProject(bytes32 id) returns (
+  function getBaseProject(bytes32 id) constant returns (
       bytes32 projectId,
       string name,
       bytes32 logoHash,
       Categories category,
       bytes32 shortBlurb,
-      bool underReview,
       bool cap,
       uint duration,
-      uint goal
+      uint goal,
+      uint timestamp
     ) {
       var project = projects[id];
 
@@ -212,42 +279,34 @@ contract Wings {
           project.logoHash,
           project.category,
           project.shortBlurb,
-          project.underReview,
           project.cap,
           project.duration,
-          project.goal
+          project.goal,
+          project.timestamp
         );
     }
 
-  function getProject(bytes32 id) returns (
+  function getProject(bytes32 id) constant returns (
       bytes32 projectId,
       string name,
-      bytes32 shortBlurb,
-      bytes32 logoHash,
-      Categories category,
       RewardTypes rewardType,
       uint rewardPercent,
-      uint duration,
-      uint goal,
       string videolink,
       bytes32 story,
-      address creator
+      address creator,
+      uint timestamp
     ) {
     var project = projects[id];
 
     return (
       project.id,
       project.name,
-      project.shortBlurb,
-      project.logoHash,
-      project.category,
       project.rewardType,
       project.rewardPercent,
-      project.duration,
-      project.goal,
       project.videolink,
       project.story,
-      project.creator
+      project.creator,
+      project.timestamp
     );
   }
 
@@ -281,25 +340,16 @@ contract Wings {
   }
 
   /*
-    Is project under review
-  */
-  function isUnderReview(bytes32 id) returns (bool) {
-    var project = projects[id];
-    return project.underReview;
-  }
-
-
-  /*
     Get count of projects
   */
-  function getCount() returns (uint) {
+  function getCount() constant returns (uint) {
     return count;
   }
 
   /*
     Add milestone
   */
-  function addMilestone(bytes32 id, MilestoneType _type, uint amount, string _items) projectOwner(id) allowToChange(id) {
+  function addMilestone(bytes32 id, MilestoneType _type, uint amount, string _items) projectOwner(id) allowToAddMilestone(id) {
     var project = projects[id];
     if (project.creator == address(0) || project.milestonesCount == 10 || amount == 0) {
       throw;
@@ -327,46 +377,8 @@ contract Wings {
     project.milestones[project.milestonesCount++] = milestone;
   }
 
-  function changeMilestone(bytes32 id, uint milestoneId, MilestoneType _type, uint amount, string items) projectOwner(id) allowToChange(id) {
-    var project = projects[id];
-
-    if (project.milestonesCount < milestoneId) {
-      throw;
-    }
-
-    project.milestones[milestoneId]._type = _type;
-    project.milestones[milestoneId].amount = amount;
-    project.milestones[milestoneId].items = getItemsFromString(items);
-
-    MilestoneUpdated(id, milestoneId);
-  }
-
-  /*
-    Remove milestone
-   */
-  function removeMilestone(bytes32 id, uint milestoneId) projectOwner(id) allowToChange(id) {
-    var project = projects[id];
-
-    if (project.milestonesCount == 0 || milestoneId > project.milestonesCount) {
-      throw;
-    }
-
-    delete project.milestones[milestoneId];
-
-    for (var i = milestoneId; i < project.milestonesCount; i++) {
-      if (i + 1 == project.milestonesCount) {
-        continue;
-      }
-
-      project.milestones[i] = project.milestones[i+1];
-    }
-
-    project.milestonesCount--;
-    MilestoneRemoved(id, milestoneId);
-  }
-
   // get milestones count
-  function getMilestonesCount(bytes32 id) returns (uint) {
+  function getMilestonesCount(bytes32 id) constant returns (uint) {
     var project = projects[id];
 
     return project.milestonesCount;
@@ -375,7 +387,7 @@ contract Wings {
   /*
     Get milestone
   */
-  function getMilestone(bytes32 id, uint milestoneId) returns (MilestoneType _type, uint amount, string items) {
+  function getMilestone(bytes32 id, uint milestoneId) constant returns (MilestoneType _type, uint amount, string items) {
     var project = projects[id];
 
     if (project.creator == address(0)) {
@@ -391,7 +403,7 @@ contract Wings {
   /*
     Get minimal goal of the project
   */
-  function getMinimalGoal(bytes32 id) returns (uint minimal) {
+  function getMinimalGoal(bytes32 id) constant returns (uint minimal) {
     var project = projects[id];
 
     if (project.creator == address(0)) {
@@ -408,7 +420,7 @@ contract Wings {
   /*
     Get cap goal of the project
   */
-  function getCap(bytes32 id) returns (uint cap) {
+  function getCap(bytes32 id) constant returns (uint cap) {
     var project = projects[id];
 
     if (project.creator == address(0) || project.cap == false) {
@@ -424,41 +436,127 @@ contract Wings {
   }
 
   /*
-    Setting hours to review
+    Forecasting
   */
-  function setHoursToReview(bytes32 id, uint hoursToReview) projectOwner(id) allowToChange(id) {
-    var project = projects[id];
+  function addForecast(bytes32 projectId, uint sum, bytes32 message) activeForecast(projectId) {
+    var project = projects[projectId];
 
-    if (project.hoursToReview != 0) {
+    if (project.creator == address(0)) {
       throw;
     }
 
-    if (hoursToReview < 12 || hoursToReview > 36) {
+    if (myForecasts[msg.sender][projectId].creator != address(0)) {
       throw;
     }
 
-    project.hoursToReview = hoursToReview;
+    if (sum > project.goal) {
+      throw;
+    }
+
+    uint goalPart = project.goal / 2;
+
+    ForecastRaiting raiting = ForecastRaiting.Low;
+
+    if (sum > goalPart) {
+      raiting = ForecastRaiting.Top;
+    }
+
+    var forecast = Forecast(
+      msg.sender,
+      projectId,
+      raiting,
+      block.timestamp,
+      message,
+      sum
+    );
+
+    project.forecasts[project.forecastsCount++] = forecast;
+    myForecasts[msg.sender][projectId] = forecast;
+  }
+
+  // disable forecast
+  function disableForecast(bytes32 projectId) projectOwner(projectId) {
+    forecastsPeriod[projectId] = false;
   }
 
   /*
-    Move to forecast period
+    Get forecasts count
   */
-  function closeReview(bytes32 id, uint hoursToForecast) projectOwner(id) allowToChange(id) {
-    var project = projects[id];
-
-    if (hoursToForecast < 12 || hoursToForecast > 36) {
-      throw;
-    }
-
-    //if (block.timestamp >= project.timestamp + project.hoursToReview * 1 hours) {
-      project.hoursToForecast = hoursToForecast;
-      project.underReview = false;
-      project.underForecast = true;
-      ProjectReady(id, project.name);
-    //} else {
-    //  throw;
-    //}
+  function getForecastCount(bytes32 projectId) constant returns (uint) {
+    var project = projects[projectId];
+    return project.forecastsCount;
   }
 
+  /*
+    Get forecast by number
+    address creator;  // creator
+    bytes32 project; // project
+    ForecastRaiting raiting; // raiting
+    uint timestamp; // timestamp
+  */
+  function getForecast(bytes32 projectId, uint id) constant returns (
+      address _creator,
+      bytes32 _project,
+      ForecastRaiting _raiting,
+      uint _timestamp,
+      bytes32 _message,
+      uint sum
+    ) {
+      var project = projects[projectId];
+      var forecast = project.forecasts[id];
+
+      return (
+        forecast.creator,
+        forecast.project,
+        forecast.raiting,
+        forecast.timestamp,
+        forecast.message,
+        forecast.sum
+      );
+  }
+
+  /*
+    Get my forecast for project
+  */
+  function getMyForecast(bytes32 projectId) constant returns (
+      address _creator,
+      bytes32 _project,
+      ForecastRaiting _raiting,
+      uint _timestamp,
+      bytes32 _message,
+      uint _sum
+    ) {
+      var forecast = myForecasts[msg.sender][projectId];
+
+      return (
+        forecast.creator,
+        forecast.project,
+        forecast.raiting,
+        forecast.timestamp,
+        forecast.message,
+        forecast.sum
+      );
+    }
+
+  function startCrowdsale(bytes32 projectId) projectOwner(projectId) allowToStartCrowdsale(projectId) {
+    var project = projects[projectId];
+
+    address crowdsaleContract = new WingsCrowdsale(project.name, project.name);
+    var crowdsale = Crowdsale(
+        msg.sender,
+        projectId,
+        crowdsaleContract
+      );
+
+    crowdsales[projectId] = crowdsale;
+  }
+
+  function getCrowdsale(bytes32 projectId) constant returns (address, address) {
+    var crowdsale = crowdsales[projectId];
+    return (
+        crowdsale.creator,
+        crowdsale.crowdsaleContract
+      );
+  }
 
 }

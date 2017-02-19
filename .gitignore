@@ -1,4 +1,4 @@
-app/
-node_modules/
 .DS_Store
-build/
+/build
+/node_modules
+/truffle.js

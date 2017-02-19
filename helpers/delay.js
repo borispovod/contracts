@@ -1,11 +1,13 @@
-const Promise = require('bluebird');
+const Promise = require('bluebird')
 
-let delay = (ms) => {
-    let deferred = Promise.pending();
-    setTimeout(() => {
-        deferred.resolve();
-    }, ms);
-    return deferred.promise;
+const delay = (ms) => {
+  const deferred = Promise.pending()
+
+  setTimeout(() => {
+    deferred.resolve()
+  }, ms)
+
+  return deferred.promise
 }
 
-module.exports = delay;
+module.exports = delay
