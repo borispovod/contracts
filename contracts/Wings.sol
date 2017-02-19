@@ -1,3 +1,7 @@
+/*
+  This is not real contracts, only to enable/disable forecasting
+*/
+
 pragma solidity ^0.4.2;
 
 import './helpers/strings.sol';
@@ -177,10 +181,6 @@ contract Wings {
   }
 
   function setAdmin(address _admin) onlyCreator() {
-    if (msg.sender != creator) {
-      throw;
-    }
-
     admin = _admin;
   }
 
