@@ -397,6 +397,12 @@ contract('Wings', (accounts) => {
     }).then(done).catch(done)
   })
 
+  it('Should return forecast period as active', (done) => {
+    return wings.getForecastActive.call(projectId).then((isForecastActive) => {
+      assert.equal(isForecastActive, true)
+    }).then(done).catch(done)
+  })
+
   it('Should get my one forecast', (done) => {
     return wings.getForecast.call(projectId, 0).then((rawForecast) => {
       let forecastInst = parser.parseForecast(rawForecast)
