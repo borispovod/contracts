@@ -487,6 +487,10 @@ contract Wings {
     return project.forecastsCount;
   }
 
+  function getForecastActive(bytes32 projectId) constant returns (bool) {
+    return forecastsPeriod[projectId];
+  }
+
   /*
     Get forecast by number
     address creator;  // creator
