@@ -487,6 +487,10 @@ contract Wings {
   function getAverageForecast(bytes32 projectId) constant returns (uint) {
     var project = projects[projectId];
 
+    if (project.forecastsCount == 0) {
+      return 0;
+    }
+    
     return forecastSum[projectId] / project.forecastsCount;
   }
 
