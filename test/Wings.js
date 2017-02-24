@@ -437,7 +437,7 @@ contract('Wings', (accounts) => {
 
     return wings.addForecast.sendTransaction(
         projectId,
-        0,
+        5,
         '0x' + crypto.randomBytes(32),
       {
         from: user
@@ -454,45 +454,37 @@ contract('Wings', (accounts) => {
   })
 
   it('Should disable forecasting', (done) => {
+    const user = accounts[1]
+
     return wings.disableForecast.sendTransaction(projectId, {
-      from: creator
+      from: user
     }).then((txId) => {
       assert.notEqual(txId, null)
     }).then(done).catch(done)
   })
 
   it('Shouldn\'t allow to forecast now', (done) => {
-    const user = accounts[2]
+    const user = accounts[1]
 
     return wings.addForecast.sendTransaction(
         projectId,
-        0,
+        10,
         '0x' + crypto.randomBytes(32),
       {
         from: user
       }
       ).then(() => {
-        asset.equal(1, 0)
+        assert.equal(1, 0)
       }).catch((err) => {
         done()
       })
   })
 
-  it('Should allow to start crowdsale', (done) => {
-    const user = accounts[1]
-    return wings.startCrowdsale.sendTransaction(
-        projectId,
-      {
-        from: user
-      }
-      ).then((txId) => {
-        assert.notEqual(txId, null)
-      }).then(done).catch(done)
-  })
 
-  it('Should return crowdsale contract', (done) => {
-    return wings.getCrowdsale.call(projectId).then((crowdsale) => {
-      assert.notEqual(crowdsale, null)
+  it('Should return average forecasting amount', (done) => {
+    return wings.getAverageForecast.call(projectId).then((average) => {
+      assert.equal(average.toString(10), '3')
     }).then(done).catch(done)
   })
+
 })

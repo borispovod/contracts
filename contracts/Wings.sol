@@ -129,6 +129,7 @@ contract Wings {
   mapping(bytes32 => bool) forecastsPeriod; // active forecasts
 
   mapping(bytes32 => Crowdsale) crowdsales;
+  mapping(bytes32 => uint) forecastSum;
 
   uint count; // amount of projects
   address creator; // creator of the contract
@@ -472,11 +473,21 @@ contract Wings {
 
     project.forecasts[project.forecastsCount++] = forecast;
     myForecasts[msg.sender][projectId] = forecast;
+    forecastSum[projectId] += sum;
   }
 
   // disable forecast
   function disableForecast(bytes32 projectId) projectOwner(projectId) {
     forecastsPeriod[projectId] = false;
+  }
+
+  /*
+    Get average forecast
+  */
+  function getAverageForecast(bytes32 projectId) constant returns (uint) {
+    var project = projects[projectId];
+
+    return forecastSum[projectId] / project.forecastsCount;
   }
 
   /*
@@ -541,19 +552,6 @@ contract Wings {
         forecast.sum
       );
     }
-
-  function startCrowdsale(bytes32 projectId) projectOwner(projectId) allowToStartCrowdsale(projectId) {
-    var project = projects[projectId];
-
-    address crowdsaleContract = new WingsCrowdsale(project.name, project.name);
-    var crowdsale = Crowdsale(
-        msg.sender,
-        projectId,
-        crowdsaleContract
-      );
-
-    crowdsales[projectId] = crowdsale;
-  }
 
   function getCrowdsale(bytes32 projectId) constant returns (address, address) {
     var crowdsale = crowdsales[projectId];
