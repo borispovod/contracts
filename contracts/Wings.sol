@@ -223,7 +223,7 @@ contract Wings {
         throw;
       }
 
-      if (_duration > 180 || _duration < 30) {
+      if (_duration > 180 || _duration < 1) {
         throw;
       }
 
@@ -450,15 +450,9 @@ contract Wings {
       throw;
     }
 
-    if (sum > project.goal) {
-      throw;
-    }
-
-    uint goalPart = project.goal / 2;
-
     ForecastRaiting raiting = ForecastRaiting.Low;
 
-    if (sum > goalPart) {
+    if (sum >= project.goal) {
       raiting = ForecastRaiting.Top;
     }
 
@@ -490,7 +484,7 @@ contract Wings {
     if (project.forecastsCount == 0) {
       return 0;
     }
-    
+
     return forecastSum[projectId] / project.forecastsCount;
   }
 
