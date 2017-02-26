@@ -219,7 +219,7 @@ contract Wings {
         throw;
       }
 
-      if (_rewardPercent > 100 || _rewardPercent == 0) {
+      if (_rewardPercent > 100000000 || _rewardPercent == 0) {
         throw;
       }
 
