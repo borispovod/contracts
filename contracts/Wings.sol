@@ -450,15 +450,9 @@ contract Wings {
       throw;
     }
 
-    if (sum > project.goal) {
-      throw;
-    }
-
-    uint goalPart = project.goal / 2;
-
     ForecastRaiting raiting = ForecastRaiting.Low;
 
-    if (sum > goalPart) {
+    if (sum >= project.goal) {
       raiting = ForecastRaiting.Top;
     }
 
