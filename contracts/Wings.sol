@@ -223,7 +223,7 @@ contract Wings {
         throw;
       }
 
-      if (_duration > 180 || _duration < 30) {
+      if (_duration > 180 || _duration < 1) {
         throw;
       }
 
@@ -490,7 +490,7 @@ contract Wings {
     if (project.forecastsCount == 0) {
       return 0;
     }
-    
+
     return forecastSum[projectId] / project.forecastsCount;
   }
 
