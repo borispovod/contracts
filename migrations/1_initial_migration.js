@@ -1,5 +1,5 @@
-/* global Migrations */
+var Migrations = artifacts.require("../contracts/Migrations.sol");
 
-module.exports = (deployer) => {
-  deployer.deploy(Migrations)
-}
+module.exports = function(deployer) {
+  deployer.deploy(Migrations);
+};

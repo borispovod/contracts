@@ -1,4 +1,5 @@
 /* global contract, Token, before */
+let Token = artifacts.require("../contracts/Token.sol");
 
 contract('Token', function (accounts) {
   let wings
