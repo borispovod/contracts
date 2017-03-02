@@ -1,4 +1,5 @@
 /* global contract, Wings, before, assert, it */
+let Wings = artifacts.require("../contracts/Wings.sol");
 
 const crypto = require('crypto')
 const Chance = require('chance')
